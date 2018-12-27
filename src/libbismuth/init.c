@@ -7,10 +7,15 @@ BiContext* biCreateContext(void)
 {
     BiContext* ctx;
     ctx = zalloc(sizeof(*ctx));
+    ctx->wram = zalloc(WRAM_SIZE);
     return ctx;
 }
 
 void biDestroyContext(BiContext* ctx)
 {
-    free(ctx);
+    if (ctx)
+    {
+        free(ctx->wram);
+        free(ctx);
+    }
 }
