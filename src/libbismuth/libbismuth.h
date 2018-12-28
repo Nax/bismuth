@@ -3,8 +3,18 @@
 
 #include <stdint.h>
 #include <bismuth/bismuth.h>
+#include <libbismuth/op.h>
 
 #define WRAM_SIZE   0x20000
+
+#define CPU_FLAG_C 0x01
+#define CPU_FLAG_Z 0x02
+#define CPU_FLAG_I 0x04
+#define CPU_FLAG_D 0x08
+#define CPU_FLAG_X 0x10
+#define CPU_FLAG_M 0x20
+#define CPU_FLAG_V 0x40
+#define CPU_FLAG_N 0x80
 
 typedef struct {
     uint16_t    pc;
