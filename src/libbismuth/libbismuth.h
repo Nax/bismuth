@@ -16,11 +16,26 @@
 #define CPU_FLAG_V 0x40
 #define CPU_FLAG_N 0x80
 
+typedef union {
+    uint16_t    u16;
+    int16_t     i16;
+    struct {
+        union {
+            uint8_t     lo_u8;
+            int8_t      lo_i8;
+        };
+        union {
+            uint8_t     hi_u8;
+            int8_t      hi_i8;
+        };
+    };
+} BiReg;
+
 typedef struct {
     uint16_t    pc;
-    uint16_t    a;
-    uint16_t    x;
-    uint16_t    y;
+    BiReg       ac;
+    BiReg       x;
+    BiReg       y;
     uint16_t    d;
     uint16_t    s;
     uint8_t     pbr;
