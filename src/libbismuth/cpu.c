@@ -2,12 +2,14 @@
 #include <string.h>
 #include <libbismuth/libbismuth.h>
 
-#define TRAP    do { printf("Bad opcode: 0x%02x at 0x%02x%04x\n", op, cpu.pbr, pcBak); getchar(); } while (0);
+#define TRAP        do { printf("Bad opcode: 0x%02x at 0x%02x%04x\n", op, cpu.pbr, pcBak); getchar(); } while (0)
+#define ADDR_A()    do { addr = biMemoryRead16(ctx, cpu.pbr, cpu.pc); cpu.pc += 2; } while (0)
 
 void biRunCycles(BiContext* ctx, size_t cycles)
 {
     BiCPU cpu;
     uint16_t pcBak;
+    uint16_t addr;
     uint8_t op;
 
     memcpy(&cpu, &ctx->cpu, sizeof(cpu));
@@ -490,7 +492,8 @@ void biRunCycles(BiContext* ctx, size_t cycles)
             TRAP;
             break;
         case OP_STZ_A:
-            TRAP;
+            ADDR_A();
+            biMemoryWrite16(ctx, cpu.dbr, addr, 0);
             break;
         case OP_STA_AX:
             TRAP;

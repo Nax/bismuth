@@ -129,7 +129,6 @@
 #define OP_ADC_AX       0x7d
 #define OP_ROR_AX       0x7e
 #define OP_ADC_AXL      0x7f
-
 #define OP_BRA_R        0x80
 #define OP_STA_DXI      0x81
 #define OP_BRL_RL       0x82
