@@ -3,8 +3,29 @@
 #include <libbismuth/libbismuth.h>
 
 #define TRAP        do { printf("Bad opcode: 0x%02x at 0x%02x%04x\n", op, cpu.pbr, pcBak); getchar(); } while (0)
+#define READ_A24()  do { a24 = biMemoryRead16(ctx, cpu.pbr, cpu.pc); a24 |= (biMemoryRead8(ctx, cpu.pbr, cpu.pc + 2) << 8); cpu.pc += 3; } while (0)
 #define READ_A16()  do { a16 = biMemoryRead16(ctx, cpu.pbr, cpu.pc); cpu.pc += 2; } while (0)
 #define READ_A8()   do { a8 = biMemoryRead8(ctx, cpu.pbr, cpu.pc); cpu.pc += 1; } while (0)
+
+#define ADC8(a, b) do {                                                     \
+    tmp32 = (uint8_t)a + (uint8_t)b + !!(cpu.p & CPU_FLAG_C);               \
+    cpu.p &= ~(CPU_FLAG_C | CPU_FLAG_V | CPU_FLAG_Z | CPU_FLAG_N);          \
+    r8 = tmp32 & 0xff;                                                      \
+    if (r8 == 0) cpu.p |= CPU_FLAG_Z;                                       \
+    if (r8 & 0x80) cpu.p |= CPU_FLAG_N;                                     \
+    if (tmp32 & 0x100) cpu.p |= CPU_FLAG_C;                                 \
+    if ((r8 ^ (uint8_t)a) & (r8 ^ (uint8_t)b) & 0x80) cpu.p |= CPU_FLAG_V;  \
+} while (0)
+
+#define ADC16(a, b) do {                                                        \
+    tmp32 = (uint16_t)a + (uint16_t)b + !!(cpu.p & CPU_FLAG_C);                 \
+    cpu.p &= ~(CPU_FLAG_C | CPU_FLAG_V | CPU_FLAG_Z | CPU_FLAG_N);              \
+    r16 = tmp32 & 0xffff;                                                       \
+    if (r16 == 0) cpu.p |= CPU_FLAG_Z;                                          \
+    if (r16 & 0x8000) cpu.p |= CPU_FLAG_N;                                      \
+    if (tmp32 & 0x10000) cpu.p |= CPU_FLAG_C;                                   \
+    if ((r16 ^ (uint8_t)a) & (r16 ^ (uint8_t)b) & 0x8000) cpu.p |= CPU_FLAG_V;  \
+} while (0)
 
 #define FLAGS8_NZ(v) do {                   \
     cpu.p &= ~(CPU_FLAG_N | CPU_FLAG_Z);    \
@@ -30,13 +51,27 @@
     }                                       \
 } while (0)
 
+#define PUSH8(v) do {                       \
+    biMemoryWrite8(ctx, 0, cpu.s, v);       \
+    cpu.s -= 1;                             \
+} while (0)
+
+#define PUSH16(v) do {                      \
+    biMemoryWrite16(ctx, 0, cpu.s, v);      \
+    cpu.s -= 2;                             \
+} while (0)
+
 void biRunCycles(BiContext* ctx, size_t cycles)
 {
     BiCPU cpu;
     uint16_t pcBak;
     uint16_t op;
+    uint32_t a24;
     uint16_t a16;
     uint8_t a8;
+    uint8_t r8;
+    uint16_t r16;
+    uint32_t tmp32;
 
     memcpy(&cpu, &ctx->cpu, sizeof(cpu));
     for (size_t cycleCounter = 0; cycleCounter < cycles; ++cycleCounter)
@@ -102,7 +137,7 @@ void biRunCycles(BiContext* ctx, size_t cycles)
         case OP_PHP_S_X:
         case OP_PHP_S_M:
         case OP_PHP_S_MX:
-            TRAP;
+            PUSH8(cpu.p);
             break;
         case OP_ORA_IMM:
         case OP_ORA_IMM_X:
@@ -150,7 +185,9 @@ void biRunCycles(BiContext* ctx, size_t cycles)
         case OP_BPL_R_X:
         case OP_BPL_R_M:
         case OP_BPL_R_MX:
-            TRAP;
+            READ_A8();
+            if (!(cpu.p & CPU_FLAG_N))
+                cpu.pc += (int8_t)a8;
             break;
         case OP_ORA_DYI:
         case OP_ORA_DYI_X:
@@ -216,7 +253,8 @@ void biRunCycles(BiContext* ctx, size_t cycles)
         case OP_TCS_X:
         case OP_TCS_M:
         case OP_TCS_MX:
-            TRAP;
+            cpu.s = cpu.ac.u16;
+            FLAGS16_NZ(cpu.ac.u16);
             break;
         case OP_TRB_A:
         case OP_TRB_A_X:
@@ -246,7 +284,9 @@ void biRunCycles(BiContext* ctx, size_t cycles)
         case OP_JSR_A_X:
         case OP_JSR_A_M:
         case OP_JSR_A_MX:
-            TRAP;
+            READ_A16();
+            PUSH16(cpu.pc - 1);
+            cpu.pc = a16;
             break;
         case OP_AND_DXI:
         case OP_AND_DXI_X:
@@ -390,7 +430,7 @@ void biRunCycles(BiContext* ctx, size_t cycles)
         case OP_SEC_X:
         case OP_SEC_M:
         case OP_SEC_MX:
-            TRAP;
+            cpu.p |= CPU_FLAG_C;
             break;
         case OP_AND_AY:
         case OP_AND_AY_X:
@@ -600,7 +640,8 @@ void biRunCycles(BiContext* ctx, size_t cycles)
         case OP_TCD_X:
         case OP_TCD_M:
         case OP_TCD_MX:
-            TRAP;
+            cpu.d = cpu.ac.u16;
+            FLAGS16_NZ(cpu.d);
             break;
         case OP_JMP_AL:
         case OP_JMP_AL_X:
@@ -914,9 +955,15 @@ void biRunCycles(BiContext* ctx, size_t cycles)
             break;
         case OP_STA_AL:
         case OP_STA_AL_X:
+            READ_A16();
+            READ_A8();
+            biMemoryWrite16(ctx, a8, a16, cpu.ac.u16);
+            break;
         case OP_STA_AL_M:
         case OP_STA_AL_MX:
-            TRAP;
+            READ_A16();
+            READ_A8();
+            biMemoryWrite8(ctx, a8, a16, cpu.ac.lo_u8);
             break;
         case OP_BCC_R:
         case OP_BCC_R_X:
@@ -968,9 +1015,13 @@ void biRunCycles(BiContext* ctx, size_t cycles)
             break;
         case OP_TYA:
         case OP_TYA_X:
+            cpu.ac.u16 = cpu.y.u16;
+            FLAGS16_NZ(cpu.ac.u16);
+            break;
         case OP_TYA_M:
         case OP_TYA_MX:
-            TRAP;
+            cpu.ac.lo_u8 = cpu.y.lo_u8;
+            FLAGS8_NZ(cpu.ac.lo_u8);
             break;
         case OP_STA_AY:
         case OP_STA_AY_X:
@@ -1014,15 +1065,27 @@ void biRunCycles(BiContext* ctx, size_t cycles)
             break;
         case OP_STA_AXL:
         case OP_STA_AXL_X:
+            READ_A24();
+            a24 += cpu.x.u16;
+            biMemoryLinearWrite16(ctx, a24, cpu.ac.u16);
+            break;
         case OP_STA_AXL_M:
         case OP_STA_AXL_MX:
-            TRAP;
+            READ_A24();
+            a24 += cpu.x.u16;
+            biMemoryLinearWrite8(ctx, a24, cpu.ac.lo_u8);
             break;
-        case OP_LDY_MM:
-        case OP_LDY_MM_X:
-        case OP_LDY_MM_M:
-        case OP_LDY_MM_MX:
-            TRAP;
+        case OP_LDY_IMM:
+        case OP_LDY_IMM_M:
+            READ_A16();
+            cpu.y.u16 = a16;
+            FLAGS16_NZ(a16);
+            break;
+        case OP_LDY_IMM_X:
+        case OP_LDY_IMM_MX:
+            READ_A8();
+            cpu.y.u16 = a8;
+            FLAGS8_NZ(a8);
             break;
         case OP_LDA_DXI:
         case OP_LDA_DXI_X:
@@ -1031,10 +1094,16 @@ void biRunCycles(BiContext* ctx, size_t cycles)
             TRAP;
             break;
         case OP_LDX_IMM:
-        case OP_LDX_IMM_X:
         case OP_LDX_IMM_M:
+            READ_A16();
+            cpu.x.u16 = a16;
+            FLAGS16_NZ(a16);
+            break;
+        case OP_LDX_IMM_X:
         case OP_LDX_IMM_MX:
-            TRAP;
+            READ_A8();
+            cpu.x.u16 = a8;
+            FLAGS8_NZ(a8);
             break;
         case OP_LDA_DS:
         case OP_LDA_DS_X:
@@ -1067,10 +1136,17 @@ void biRunCycles(BiContext* ctx, size_t cycles)
             TRAP;
             break;
         case OP_TAY:
-        case OP_TAY_X:
+            cpu.y.u16 = cpu.ac.u16;
+            FLAGS16_NZ(cpu.y.u16);
+            break;
         case OP_TAY_M:
+            cpu.y.u16 = cpu.ac.lo_u8;
+            FLAGS16_NZ(cpu.y.u16);
+            break;
+        case OP_TAY_X:
         case OP_TAY_MX:
-            TRAP;
+            cpu.y.lo_u8 = cpu.ac.lo_u8;
+            FLAGS8_NZ(cpu.y.lo_u8);
             break;
         case OP_LDA_IMM:
         case OP_LDA_IMM_X:
@@ -1232,7 +1308,12 @@ void biRunCycles(BiContext* ctx, size_t cycles)
         case OP_REP_IMM_X:
         case OP_REP_IMM_M:
         case OP_REP_IMM_MX:
-            TRAP;
+            READ_A8();
+            cpu.p &= ~a8;
+            if (cpu.e)
+            {
+                cpu.p |= (CPU_FLAG_M | CPU_FLAG_X);
+            }
             break;
         case OP_CMP_DS:
         case OP_CMP_DS_X:
@@ -1277,10 +1358,14 @@ void biRunCycles(BiContext* ctx, size_t cycles)
             TRAP;
             break;
         case OP_DEX:
-        case OP_DEX_X:
         case OP_DEX_M:
+            cpu.x.u16--;
+            FLAGS16_NZ(cpu.x.u16);
+            break;
+        case OP_DEX_X:
         case OP_DEX_MX:
-            TRAP;
+            cpu.x.lo_u8--;
+            FLAGS8_NZ(cpu.x.lo_u8);
             break;
         case OP_WAI:
         case OP_WAI_X:
@@ -1424,7 +1509,8 @@ void biRunCycles(BiContext* ctx, size_t cycles)
         case OP_SEP_IMM_X:
         case OP_SEP_IMM_M:
         case OP_SEP_IMM_MX:
-            TRAP;
+            READ_A8();
+            cpu.p |= a8;
             break;
         case OP_SBC_DS:
         case OP_SBC_DS_X:
@@ -1464,9 +1550,15 @@ void biRunCycles(BiContext* ctx, size_t cycles)
             break;
         case OP_SBC_IMM:
         case OP_SBC_IMM_X:
+            READ_A16();
+            ADC16(cpu.ac.u16, ~a16);
+            cpu.ac.u16 = r16;
+            break;
         case OP_SBC_IMM_M:
         case OP_SBC_IMM_MX:
-            TRAP;
+            READ_A8();
+            ADC8(cpu.ac.lo_u8, ~a8);
+            cpu.ac.lo_u8 = r8;
             break;
         case OP_NOP:
         case OP_NOP_X:

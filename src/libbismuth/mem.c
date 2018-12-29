@@ -29,9 +29,30 @@ void name (BiContext* ctx, uint8_t bank, uint16_t addr, type value)         \
     {                                                                       \
         if (addr < 0x2000) { *(type*)(ctx->wram + addr) = value; return; }  \
         badIO(bank, addr, 1);                                               \
+        return;                                                             \
     }                                                                       \
     badIO(bank, addr, 1);                                                   \
 }
 
 MEMORY_WRITE(biMemoryWrite8, uint8_t);
 MEMORY_WRITE(biMemoryWrite16, uint16_t);
+
+uint8_t biMemoryLinearRead8(BiContext* ctx, uint32_t vaddr)
+{
+    return biMemoryRead8(ctx, (vaddr >> 16) & 0xff, vaddr & 0xffff);
+}
+
+uint16_t biMemoryLinearRead16(BiContext* ctx, uint32_t vaddr)
+{
+    return biMemoryRead16(ctx, (vaddr >> 16) & 0xff, vaddr & 0xffff);
+}
+
+void biMemoryLinearWrite8(BiContext* ctx, uint32_t vaddr, uint8_t value)
+{
+    biMemoryWrite8(ctx, (vaddr >> 16) & 0xff, vaddr & 0xffff, value);
+}
+
+void biMemoryLinearWrite16(BiContext* ctx, uint32_t vaddr, uint16_t value)
+{
+    biMemoryWrite16(ctx, (vaddr >> 16) & 0xff, vaddr & 0xffff, value);
+}

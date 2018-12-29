@@ -161,7 +161,7 @@
 #define OP_STA_AX       0x9d
 #define OP_STZ_AX       0x9e
 #define OP_STA_AXL      0x9f
-#define OP_LDY_MM       0xa0
+#define OP_LDY_IMM      0xa0
 #define OP_LDA_DXI      0xa1
 #define OP_LDX_IMM      0xa2
 #define OP_LDA_DS       0xa3
@@ -418,7 +418,7 @@
 #define OP_STA_AX_X       0x19d
 #define OP_STZ_AX_X       0x19e
 #define OP_STA_AXL_X      0x19f
-#define OP_LDY_MM_X       0x1a0
+#define OP_LDY_IMM_X      0x1a0
 #define OP_LDA_DXI_X      0x1a1
 #define OP_LDX_IMM_X      0x1a2
 #define OP_LDA_DS_X       0x1a3
@@ -675,7 +675,7 @@
 #define OP_STA_AX_M       0x29d
 #define OP_STZ_AX_M       0x29e
 #define OP_STA_AXL_M      0x29f
-#define OP_LDY_MM_M       0x2a0
+#define OP_LDY_IMM_M      0x2a0
 #define OP_LDA_DXI_M      0x2a1
 #define OP_LDX_IMM_M      0x2a2
 #define OP_LDA_DS_M       0x2a3
@@ -932,7 +932,7 @@
 #define OP_STA_AX_MX       0x39d
 #define OP_STZ_AX_MX       0x39e
 #define OP_STA_AXL_MX      0x39f
-#define OP_LDY_MM_MX       0x3a0
+#define OP_LDY_IMM_MX      0x3a0
 #define OP_LDA_DXI_MX      0x3a1
 #define OP_LDX_IMM_MX      0x3a2
 #define OP_LDA_DS_MX       0x3a3

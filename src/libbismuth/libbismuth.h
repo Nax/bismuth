@@ -56,4 +56,9 @@ uint16_t    biMemoryRead16(BiContext* ctx, uint8_t bank, uint16_t addr);
 void        biMemoryWrite8(BiContext* ctx, uint8_t bank, uint16_t addr, uint8_t value);
 void        biMemoryWrite16(BiContext* ctx, uint8_t bank, uint16_t addr, uint16_t value);
 
+uint8_t     biMemoryLinearRead8(BiContext* ctx, uint32_t vaddr);
+uint16_t    biMemoryLinearRead16(BiContext* ctx, uint32_t vaddr);
+void        biMemoryLinearWrite8(BiContext* ctx, uint32_t vaddr, uint8_t value);
+void        biMemoryLinearWrite16(BiContext* ctx, uint32_t vaddr, uint16_t value);
+
 #endif
